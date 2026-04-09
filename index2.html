@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión Jardinería PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--muted:#9aa3af;--accent:#22c55e;--danger:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#e5e7eb}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{margin:0 0 10px}
+.nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.nav button{background:#111827;border:1px solid #1f2937;color:#e5e7eb;padding:10px 14px;border-radius:10px;cursor:pointer}
+.nav button.active{border-color:var(--accent)}
+.card{background:var(--card);border:1px solid #1f2937;border-radius:14px;padding:16px;margin-top:12px}
+.grid{display:grid;gap:10px}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.grid.cols-2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:800px){.grid.cols-3,.grid.cols-2{grid-template-columns:1fr}}
+input,select,button{padding:10px;border-radius:10px;border:1px solid #1f2937;background:#0b0e14;color:#e5e7eb}
+button.primary{background:var(--accent);border:none;color:#052e16;font-weight:600}
+.list-item{display:flex;justify-content:space-between;border-bottom:1px solid #1f2937;padding:8px 0}
+.small{color:var(--muted);font-size:12px}
+.low{color:var(--danger);font-weight:700}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌿 Gestión Jardinería PRO</h1>
+  <div class="nav">
+    <button onclick="showTab('dashboard')" id="tab-dashboard" class="active">Dashboard</button>
+    <button onclick="showTab('economia')" id="tab-economia">Economía</button>
+    <button onclick="showTab('clientes')" id="tab-clientes">Clientes</button>
+    <button onclick="showTab('trabajadores')" id="tab-trabajadores">Trabajadores</button>
+    <button onclick="showTab('stock')" id="tab-stock">Stock</button>
+  </div>
+
+  <div id="dashboard" class="view">
+    <div class="grid cols-3">
+      <div class="card"><div class="small">Ingresos</div><div id="d-ingresos">0 €</div></div>
+      <div class="card"><div class="small">Gastos</div><div id="d-gastos">0 €</div></div>
+      <div class="card"><div class="small">Beneficio</div><div id="d-beneficio">0 €</div></div>
+    </div>
+    <div class="grid cols-3">
+      <div class="card"><div class="small">Clientes</div><div id="d-clientes">0</div></div>
+      <div class="card"><div class="small">Trabajadores</div><div id="d-trabajadores">0</div></div>
+      <div class="card"><div class="small">Productos</div><div id="d-productos">0</div></div>
+    </div>
+  </div>
+
+  <div id="economia" class="view" style="display:none">
+    <div class="card grid cols-3">
+      <select id="eco-tipo"><option value="ingreso">Ingreso</option><option value="gasto">Gasto</option></select>
+      <input id="eco-concepto" placeholder="Concepto">
+      <input id="eco-importe" type="number" placeholder="Importe">
+      <button class="primary" onclick="addEco()">Guardar</button>
+    </div>
+    <div class="card"><div id="eco-list"></div></div>
+  </div>
+
+  <div id="clientes" class="view" style="display:none">
+    <div class="card grid cols-3">
+      <input id="cli-nombre" placeholder="Nombre">
+      <input id="cli-telefono" placeholder="Teléfono">
+      <input id="cli-direccion" placeholder="Dirección">
+      <button class="primary" onclick="addCliente()">Añadir cliente</button>
+    </div>
+    <div class="card" id="cli-list"></div>
+  </div>
+
+  <div id="trabajadores" class="view" style="display:none">
+    <div class="card grid cols-2">
+      <input id="tra-nombre" placeholder="Nombre trabajador">
+      <button class="primary" onclick="addTrabajador()">Añadir</button>
+    </div>
+    <div class="card" id="tra-list"></div>
+  </div>
+
+  <div id="stock" class="view" style="display:none">
+    <div class="card grid cols-2">
+      <input id="sto-nombre" placeholder="Producto">
+      <input id="sto-cantidad" type="number" placeholder="Cantidad">
+      <button class="primary" onclick="addStock()">Añadir producto</button>
+    </div>
+    <div class="card" id="sto-list"></div>
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  document.getElementById(id).style.display='block';
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+let eco=[], clientes=[], trabajadores=[], stock=[];
+
+function render(){
+  let ingresos=0,gastos=0;
+  eco.forEach(e=>{ if(e.tipo==='ingreso') ingresos+=Number(e.importe); else gastos+=Number(e.importe); });
+  document.getElementById('d-ingresos').innerText=ingresos+' €';
+  document.getElementById('d-gastos').innerText=gastos+' €';
+  document.getElementById('d-beneficio').innerText=(ingresos-gastos)+' €';
+  document.getElementById('eco-list').innerHTML = eco.map(e=>`<div class="list-item"><span>${e.tipo} - ${e.concepto}</span><b>${e.importe}€</b></div>`).join('');
+
+  document.getElementById('cli-list').innerHTML = clientes.map(c=>`<div class="list-item"><span>${c.nombre}</span><span>${c.telefono||''}</span></div>`).join('');
+  document.getElementById('d-clientes').innerText = clientes.length;
+
+  document.getElementById('tra-list').innerHTML = trabajadores.map(t=>`<div class="list-item">${t.nombre}</div>`).join('');
+  document.getElementById('d-trabajadores').innerText = trabajadores.length;
+
+  document.getElementById('sto-list').innerHTML = stock.map(s=>`<div class="list-item"><span>${s.nombre}</span><span class="${s.cantidad<5?'low':''}">${s.cantidad}</span></div>`).join('');
+  document.getElementById('d-productos').innerText = stock.length;
+}
+
+function addEco(){
+  const tipo=document.getElementById('eco-tipo').value;
+  const concepto=document.getElementById('eco-concepto').value;
+  const importe=document.getElementById('eco-importe').value;
+  if(!concepto||!importe)return;
+  eco.push({tipo,concepto,importe});
+  render();
+}
+
+function addCliente(){
+  const nombre=document.getElementById('cli-nombre').value;
+  const telefono=document.getElementById('cli-telefono').value;
+  if(!nombre)return;
+  clientes.push({nombre,telefono});
+  render();
+}
+
+function addTrabajador(){
+  const nombre=document.getElementById('tra-nombre').value;
+  if(!nombre)return;
+  trabajadores.push({nombre});
+  render();
+}
+
+function addStock(){
+  const nombre=document.getElementById('sto-nombre').value;
+  const cantidad=document.getElementById('sto-cantidad').value;
+  if(!nombre||!cantidad)return;
+  stock.push({nombre,cantidad:Number(cantidad)});
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
